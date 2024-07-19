@@ -7,7 +7,29 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import matplotlib.image as mpimg
+from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
+
+client_id = 'trial-laptop'  # Replace with your client ID
+endpoint = 'a1ycszl175e4kf-ats.iot.us-east-1.amazonaws.com'  # Replace with your IoT endpoint
+root_ca_path = './connect_device_package/root-CA.crt'
+private_key_path = './connect_device_package/trail-laptop.private.key'
+certificate_path = './connect_device_package/trail-laptop.cert.pem'
+topic = 'cars/information'  # Replace with your topic
+
+mqtt_client = AWSIoTMQTTClient(client_id)
+mqtt_client.configureEndpoint(endpoint, 8883)
+mqtt_client.configureCredentials(root_ca_path, private_key_path, certificate_path)
+
+# MQTT client configuration
+mqtt_client.configureAutoReconnectBackoffTime(1, 32, 20)
+mqtt_client.configureOfflinePublishQueueing(-1)  # Infinite offline publish queueing
+mqtt_client.configureDrainingFrequency(2)  # Draining: 2 Hz
+mqtt_client.configureConnectDisconnectTimeout(10)  # 10 sec
+mqtt_client.configureMQTTOperationTimeout(5)  # 5 sec
+
+# Connect to AWS IoT
+mqtt_client.connect()
 
 def convertDegreeArcToPercent(value):
     return max(value/360, 0)
@@ -138,6 +160,9 @@ class AssettoCorsaData(object):
 if __name__ == '__main__':
     assettoReader = AssettoCorsaData()
     assettoReader.start()
+    static_data = assettoReader.getStaticData()
+    mqtt_client.publish(topic, json.dumps(static_data), 1)
+    topic = f"telemetry/{static_data['playerName']}"
     duration = 2 * 60 + 6
     data = []
     #print('Static data:', assettoReader.getStaticData())
@@ -158,11 +183,16 @@ if __name__ == '__main__':
         y.append((data['tyreContactPointFLY']+data['tyreContactPointFRY']+data['tyreContactPointRLY']+data['tyreContactPointRRY'])/4)
         z.append((data['tyreContactPointFLZ']+data['tyreContactPointFRZ']+data['tyreContactPointRLZ']+data['tyreContactPointRRZ'])/4)
 
+        telemetry_data = data
+
+        mqtt_client.publish(topic, json.dumps(telemetry_data), 1)
+
         elapsed_time = time.time() - start_time
         if elapsed_time >= duration:
             break
-        time.sleep(0.2)
-    print(data)
+        time.sleep(1)
+    
+    '''print(data)
     #print(dist)
     #print(max(dist))
     #print(min(dist))
@@ -183,4 +213,4 @@ if __name__ == '__main__':
     ax.set_title('Y-X Plot Overlaid on Map')
 
     # Show the plot
-    plt.show()
+    plt.show()'''
