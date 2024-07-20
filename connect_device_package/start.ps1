@@ -48,4 +48,4 @@ if (!$?) {
 }
 
 "`nRunning pub/sub sample application..."
-& $python3 aws-iot-device-sdk-python-v2\samples\pubsub.py --endpoint a1ycszl175e4kf-ats.iot.us-east-1.amazonaws.com --ca_file root-CA.crt --cert trail-laptop.cert.pem --key trail-laptop.private.key --client_id basicPubSub --topic sdk/test/python --count 0
+& $python3 aws-iot-device-sdk-python-v2\samples\pubsub.py --endpoint a2f67lk3o0rml9-ats.iot.us-east-1.amazonaws.com --ca_file root-CA.crt --cert trail-laptop.cert.pem --key trail-laptop.private.key --client_id basicPubSub --topic sdk/test/python --count 0

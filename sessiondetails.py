@@ -11,7 +11,7 @@ from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
 
 client_id = 'trial-laptop'  # Replace with your client ID
-endpoint = 'a1ycszl175e4kf-ats.iot.us-east-1.amazonaws.com'  # Replace with your IoT endpoint
+endpoint = 'a2f67lk3o0rml9-ats.iot.us-east-1.amazonaws.com'  # Replace with your IoT endpoint
 root_ca_path = './connect_device_package/root-CA.crt'
 private_key_path = './connect_device_package/trail-laptop.private.key'
 certificate_path = './connect_device_package/trail-laptop.cert.pem'
@@ -190,7 +190,7 @@ if __name__ == '__main__':
         elapsed_time = time.time() - start_time
         if elapsed_time >= duration:
             break
-        time.sleep(1)
+        time.sleep(0.2)
     
     '''print(data)
     #print(dist)

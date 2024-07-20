@@ -9,11 +9,11 @@
         "iot:PublishRetain"
       ],
       "Resource": [
-        "arn:aws:iot:us-east-1:212921821192:topic/sdk/test/java",
-        "arn:aws:iot:us-east-1:212921821192:topic/sdk/test/python",
-        "arn:aws:iot:us-east-1:212921821192:topic/sdk/test/js",
-        "arn:aws:iot:us-east-1:212921821192:topic/cars/information",
-        "arn:aws:iot:us-east-1:212921821192:topic/telemetry/*"
+        "arn:aws:iot:us-east-1:548995508093:topic/cars/information",
+        "arn:aws:iot:us-east-1:548995508093:topic/telemetry/*",
+        "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/java",
+        "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/python",
+        "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/js"
       ]
     },
     {
@@ -22,11 +22,11 @@
         "iot:Subscribe"
       ],
       "Resource": [
-        "arn:aws:iot:us-east-1:212921821192:topicfilter/sdk/test/java",
-        "arn:aws:iot:us-east-1:212921821192:topicfilter/sdk/test/python",
-        "arn:aws:iot:us-east-1:212921821192:topicfilter/sdk/test/js",
-        "arn:aws:iot:us-east-1:212921821192:topicfilter/cars/information",
-        "arn:aws:iot:us-east-1:212921821192:topicfilter/telemetry/*"
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/cars/information",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/telemetry/*",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/java",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/python",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/js"
       ]
     },
     {
@@ -35,10 +35,10 @@
         "iot:Connect"
       ],
       "Resource": [
-        "arn:aws:iot:us-east-1:212921821192:client/*",
-        "arn:aws:iot:us-east-1:212921821192:client/sdk-java",
-        "arn:aws:iot:us-east-1:212921821192:client/basicPubSub",
-        "arn:aws:iot:us-east-1:212921821192:client/sdk-nodejs-*"
+        "arn:aws:iot:us-east-1:548995508093:client/*",
+        "arn:aws:iot:us-east-1:548995508093:client/sdk-java",
+        "arn:aws:iot:us-east-1:548995508093:client/basicPubSub",
+        "arn:aws:iot:us-east-1:548995508093:client/sdk-nodejs-*"
       ]
     }
   ]
