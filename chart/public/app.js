@@ -36,6 +36,9 @@ const imageBackgroundPlugin = {
 
 // Initialize the chart
 let chart;
+let dataPoints = [];
+let animationStartTime = null;
+const animationDuration = 200; // Animation duration in milliseconds
 
 const initializeChart = () => {
   chart = new Chart(ctx, {
@@ -63,6 +66,7 @@ const initializeChart = () => {
         x: {
           type: 'linear',
           position: 'bottom',
+          display: false,
           title: {
             display: false,
             text: 'X Axis'
@@ -76,6 +80,7 @@ const initializeChart = () => {
         },
         y: {
           beginAtZero: true,
+          display: false,
           title: {
             display: false,
             text: 'Y Axis'
@@ -91,7 +96,7 @@ const initializeChart = () => {
       plugins: {
         imageBackground: true, // Enable the custom plugin
         legend: {
-          display: false
+          display: true
         },
         tooltip: {
           callbacks: {
@@ -104,6 +109,45 @@ const initializeChart = () => {
     },
     plugins: [imageBackgroundPlugin] // Register the custom plugin
   });
+};
+
+// Function to interpolate between two points
+const interpolate = (start, end, factor) => {
+  return {
+    x: start.x + factor * (end.x - start.x),
+    y: start.y + factor * (end.y - start.y)
+  };
+};
+
+// Function to animate the chart
+const animateChart = () => {
+  if (dataPoints.length === 2) {
+    const now = Date.now();
+    if (!animationStartTime) {
+      animationStartTime = now;
+    }
+
+    const elapsedTime = now - animationStartTime;
+    const factor = Math.min(elapsedTime / animationDuration, 1);
+
+    const startPoint = dataPoints[0];
+    const endPoint = dataPoints[1];
+    const interpolatedPoint = interpolate(startPoint, endPoint, factor);
+
+    chart.data.datasets[0].data = [interpolatedPoint];
+    chart.update();
+
+    if (factor < 1) {
+      // Continue animation
+      requestAnimationFrame(animateChart);
+    } else {
+      // Reset animation
+      animationStartTime = null;
+      setTimeout(() => {
+        // Wait for the next data point to animate to
+      }, 300); // Delay before the next animation starts
+    }
+  }
 };
 
 // Initialize the chart when the image is loaded or on page load
@@ -134,19 +178,18 @@ ws.onclose = () => {
 ws.onmessage = (event) => {
   const dataPoint = JSON.parse(event.data);
 
-  // Update chart data
-  if (chart) {
-    chart.data.datasets[0].data.push({
-      x: ((dataPoint['tyreContactPointFLX'] + dataPoint['tyreContactPointFRX'] + dataPoint['tyreContactPointRLX'] + dataPoint['tyreContactPointRRX']) / 4),
-      y: ((dataPoint['tyreContactPointFLY'] + dataPoint['tyreContactPointFRY'] + dataPoint['tyreContactPointRLY'] + dataPoint['tyreContactPointRRY']) / 4)
-    });
+  // Add the new data point to the array, maintaining a maximum of 2 points
+  dataPoints.push({
+    x: ((dataPoint['tyreContactPointFLX'] + dataPoint['tyreContactPointFRX'] + dataPoint['tyreContactPointRLX'] + dataPoint['tyreContactPointRRX']) / 4),
+    y: ((dataPoint['tyreContactPointFLY'] + dataPoint['tyreContactPointFRY'] + dataPoint['tyreContactPointRLY'] + dataPoint['tyreContactPointRRY']) / 4)
+  });
 
-    // Optionally limit the number of data points displayed
-    if (chart.data.datasets[0].data.length > 1) { // Example limit
-      chart.data.datasets[0].data.shift();
-    }
-
-    // Update the chart
-    chart.update();
+  if (dataPoints.length > 2) {
+    dataPoints.shift(); // Remove the oldest point if more than 2 points
   }
-}
+
+  // Start the animation loop if not already running
+  if (dataPoints.length === 2 && !animationStartTime) {
+    animateChart();
+  }
+};

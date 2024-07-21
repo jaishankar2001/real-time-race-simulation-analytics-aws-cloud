@@ -190,7 +190,7 @@ if __name__ == '__main__':
         elapsed_time = time.time() - start_time
         if elapsed_time >= duration:
             break
-        time.sleep(0.2)
+        time.sleep(0.5)
     
     '''print(data)
     #print(dist)
