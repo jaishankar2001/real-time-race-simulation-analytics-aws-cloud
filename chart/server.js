@@ -1,10 +1,22 @@
-const fs = require('fs');
+// server.js
+const express = require('express');
+const path = require('path');
+const WebSocket = require('ws');
 const http = require('http');
 const mqtt = require('mqtt');
-const WebSocket = require('ws');
-const path = require('path');
+const fs = require('fs');
+const chart = require('chart');
 
-// Paths to your x.509 certificates
+const app = express();
+const port = 8080;
+
+// Create an HTTP server
+const server = http.createServer(app);
+
+// Create a WebSocket server
+const wss = new WebSocket.Server({ server });
+
+// Paths to your certificate files
 const CERT_PATH = '../connect_device_package/trail-laptop.cert.pem';
 const KEY_PATH = '../connect_device_package/trail-laptop.private.key';
 const CA_PATH = '../connect_device_package/root-CA.crt';
@@ -28,86 +40,38 @@ const options = {
   clean: true,
   encoding: 'utf8'
 };
+const mqttClient = mqtt.connect(options);
+mqttClient.on('connect', () => {
+  console.log('Connected to AWS IoT Core');
 
-// Create MQTT client and connect
-const client = mqtt.connect(options);
-
-// Create HTTP server to serve HTML and JS files
-const server = http.createServer((req, res) => {
-  if (req.method === 'GET') {
-    if (req.url === '/') {
-      fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading index.html');
-        } else {
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(data);
-        }
-      });
-    } else if (req.url === '/app.js') {
-      fs.readFile(path.join(__dirname, 'app.js'), (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading app.js');
-        } else {
-          res.writeHead(200, { 'Content-Type': 'application/javascript' });
-          res.end(data);
-        }
-      });
-    } else if (req.url === './Monza.png') {
-      fs.readFile(path.join(__dirname, './Monza.png'), (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading background image');
-        } else {
-          res.writeHead(200, { 'Content-Type': 'image/png' });
-          res.end(data);
-        }
-      });
+  // Subscribe to your topic
+  mqttClient.subscribe('telemetry/disconnector12', (err) => {
+    if (!err) {
+      console.log('Subscribed to topic');
     } else {
-      res.writeHead(404);
-      res.end('Not Found');
-    }
-  } else {
-    res.writeHead(405);
-    res.end('Method Not Allowed');
-  }
-});
-
-// Create WebSocket server
-const wss = new WebSocket.Server({ server });
-
-// Handle MQTT messages
-client.on('connect', () => {
-  console.log('Connected to AWS IoT');
-  client.subscribe(TOPIC, (err) => {
-    if (err) {
       console.error('Subscription error:', err);
     }
   });
 });
 
-client.on('message', (topic, message) => {
-  console.log('Received message:', message.toString());
-  // Broadcast message to all connected WebSocket clients
-  wss.clients.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(message.toString());
+mqttClient.on('message', (topic, message) => {
+  // Broadcast message to all WebSocket clients
+  const dataPoint = JSON.parse(message.toString());
+  //console.log('Received message:', dataPoint);
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(dataPoint));
     }
   });
 });
 
-// Handle WebSocket connections
-wss.on('connection', (ws) => {
-  console.log('WebSocket client connected');
+// Serve static files from the "public" directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-wss.on('close', () => {
-  console.log('WebSocket client disconnected');
-});
-
-// Start the HTTP server on port 8080
-server.listen(8080, () => {
-  console.log('HTTP server listening on port 8080');
+server.listen(port, () => {
+  console.log(`Server is running at http://localhost:${port}`);
 });
