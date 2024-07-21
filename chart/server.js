@@ -40,29 +40,51 @@ const options = {
   clean: true,
   encoding: 'utf8'
 };
+const initialTopic = 'cars/information';
 const mqttClient = mqtt.connect(options);
 mqttClient.on('connect', () => {
   console.log('Connected to AWS IoT Core');
 
   // Subscribe to your topic
-  mqttClient.subscribe('telemetry/disconnector12', (err) => {
+  mqttClient.subscribe(initialTopic, (err) => {
     if (!err) {
-      console.log('Subscribed to topic');
+      console.log(`Subscribed to initial topic: ${initialTopic}`);
     } else {
       console.error('Subscription error:', err);
     }
   });
 });
-
 mqttClient.on('message', (topic, message) => {
   // Broadcast message to all WebSocket clients
-  const dataPoint = JSON.parse(message.toString());
-  //console.log('Received message:', dataPoint);
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(dataPoint));
+  if (topic === initialTopic) {
+    console.log("data")
+    const dataPoint = JSON.parse(message.toString());
+    const playerName = dataPoint['playerName'];
+    const newTopic = "telemetry/"+playerName;
+    if (newTopic) {
+        // Subscribe to the new topic
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(dataPoint));
+            }
+        });
+        mqttClient.subscribe(newTopic, (err) => {
+          if (!err) {
+            console.log(`Subscribed to new topic: ${newTopic}`);
+          } else {
+            console.error('Subscription error:', err);
+          }
+        });
     }
-  });
+  }else{
+    const dataPoint = JSON.parse(message.toString());
+    //console.log('Received message:', dataPoint);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(dataPoint));
+        }
+    });
+}
 });
 
 // Serve static files from the "public" directory

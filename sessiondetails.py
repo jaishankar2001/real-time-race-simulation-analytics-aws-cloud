@@ -170,7 +170,7 @@ if __name__ == '__main__':
     x = []
     y = []
     z = []
-    start_time = time.time()
+    #start_time = time.time()
     while True:
         #print('Assetto data:', assettoReader.getData())
         data = assettoReader.getData()
@@ -187,9 +187,9 @@ if __name__ == '__main__':
 
         mqtt_client.publish(topic, json.dumps(telemetry_data), 1)
 
-        elapsed_time = time.time() - start_time
-        if elapsed_time >= duration:
-            break
+        #elapsed_time = time.time() - start_time
+        #if elapsed_time >= duration:
+        #    break
         time.sleep(0.5)
     
     '''print(data)
