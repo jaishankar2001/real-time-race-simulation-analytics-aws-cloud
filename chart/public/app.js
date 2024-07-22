@@ -35,29 +35,29 @@ const imageBackgroundPlugin = {
     }
   }
 };
-
+const getRandomColor = () => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+};
 // Initialize the chart
 let chart;
-let dataPoints = [];
-let animationStartTime = null;
+let animationStartTimes = {};
 const animationDuration = 500; // Animation duration in milliseconds
 
 const initializeChart = () => {
   chart = new Chart(ctx, {
     type: 'line',
-    data: {
+    /*data: {
       datasets: [{
         label: playerName,
         data: [], // Array to hold { x, y } data points
-        borderColor: 'rgba(255, 0, 0, 1)', // Red border color
-        backgroundColor: 'rgba(255, 0, 0, 1)',
-        borderWidth: 1,
-        pointBackgroundColor: 'rgba(255, 0, 0, 1)', // Solid red points
-        pointBorderColor: 'rgba(255, 0, 0, 1)', // Solid red point borders
-        pointRadius: 5,
         fill: false // Set to false to avoid filling under the line
       }]
-    },
+    },*/
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -98,7 +98,10 @@ const initializeChart = () => {
       plugins: {
         imageBackground: true, // Enable the custom plugin
         legend: {
-          display: true
+          display: true,
+          labels: {
+            color: 'white'
+          }
         },
         tooltip: {
           callbacks: {
@@ -147,30 +150,30 @@ const interpolate = (start, end, factor) => {
 };
 
 // Function to animate the chart
-const animateChart = () => {
+const animateChart = (dataPoints, datasetIndex) => {
   if (dataPoints.length === 2) {
     const now = Date.now();
-    if (!animationStartTime) {
-      animationStartTime = now;
+    if (!animationStartTimes[datasetIndex]) {
+      animationStartTimes[datasetIndex] = now;
     }
 
-    const elapsedTime = now - animationStartTime;
+    const elapsedTime = now - animationStartTimes[datasetIndex];
     const factor = Math.min(elapsedTime / animationDuration, 1);
 
     const startPoint = dataPoints[0];
     const endPoint = dataPoints[1];
     const interpolatedPoint = interpolate(startPoint, endPoint, factor);
 
-    chart.data.datasets[0].data = [interpolatedPoint];
+    chart.data.datasets[datasetIndex].data = [interpolatedPoint];
     chart.update();
 
     if (factor < 1) {
       // Continue animation
-      requestAnimationFrame(animateChart);
+      requestAnimationFrame(() => animateChart(dataPoints, datasetIndex));;
     } else {
       // Reset animation
-      animationStartTime = null;
-      setTimeout(() => {
+        animationStartTimes[datasetIndex] = null;
+        setTimeout(() => {
         // Wait for the next data point to animate to
       }, 500); // Delay before the next animation starts
     }
@@ -206,42 +209,64 @@ ws.onclose = () => {
 let trackLoaded = false;
 let trackImageSrc = '';
 let isTrackDataReceived = false;
+let carDataPoints = {};
+
 // Handle incoming WebSocket messages
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    //console.log(data['track'])
+    console.log(data)
     if (data['track']) {
-        playerName = data['playerName'];
+        const playerName = data['playerName'];
+        console.log("new player", playerName)
         console.log(isTrackDataReceived)
         // Handle track data
         trackImageSrc = `Images/${data['track']}.png`; // Adjust path as needed
         image.src = trackImageSrc;
         isTrackDataReceived = true;
-        
+        if (!carDataPoints[playerName]) {
+            const color = getRandomColor();
+            carDataPoints[playerName] = [];
+            chart.data.datasets.push({
+              label: playerName,
+              data: [],
+              borderColor: color,
+              backgroundColor: color,
+              borderWidth: 1,
+              pointBackgroundColor: color,
+              pointBorderColor: color,
+              pointRadius: 5,
+              fill: false
+            });
+        }
         if (chart) {
-          chart.data.datasets[0].label = playerName;
+          const datasetIndex = chart.data.datasets.findIndex(dataset => dataset.label === playerName);
+          chart.data.datasets[datasetIndex].label = playerName;
           updateChartAxisLimits(data['track']);
           chart.update(); // Force a redraw after the track image is loaded
     }
-    } else if (data.tyreContactPointFLX) {
+    } else if (data['packetId']) {
         // Handle coordinate data only if track is loaded
+        console.log(data)
         if (!isTrackDataReceived || !imageLoaded) {
-        console.warn('Track image not loaded yet');
+            console.warn('Track image not loaded yet');
         return; // Exit if track is not loaded
         }
-
-        dataPoints.push({
+        
+        
+        const playerName = data['playerName']
+        console.log("data from", playerName)
+        carDataPoints[playerName].push({
         x: ((data.tyreContactPointFLX + data.tyreContactPointFRX + data.tyreContactPointRLX + data.tyreContactPointRRX) / 4),
         y: ((data.tyreContactPointFLY + data.tyreContactPointFRY + data.tyreContactPointRLY + data.tyreContactPointRRY) / 4)
         });
 
-        if (dataPoints.length > 2) {
-        dataPoints.shift(); // Remove the oldest point if more than 2 points
+        if (carDataPoints[playerName].length > 2) {
+        carDataPoints[playerName].shift(); // Remove the oldest point if more than 2 points
         }
-
+        const datasetIndex = chart.data.datasets.findIndex(dataset => dataset.label === playerName);
         // Start the animation loop if not already running
-        if (dataPoints.length === 2 && !animationStartTime) {
-        animateChart();
+        if (carDataPoints[playerName].length === 2 && !animationStartTimes[datasetIndex]) {
+        animateChart(carDataPoints[playerName], datasetIndex);
         }
     }
 };

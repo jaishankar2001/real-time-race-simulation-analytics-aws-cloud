@@ -161,7 +161,9 @@ if __name__ == '__main__':
     assettoReader = AssettoCorsaData()
     assettoReader.start()
     static_data = assettoReader.getStaticData()
+    print(static_data)
     mqtt_client.publish(topic, json.dumps(static_data), 1)
+    time.sleep(1)
     topic = f"telemetry/{static_data['playerName']}"
     duration = 2 * 60 + 6
     data = []
@@ -170,6 +172,7 @@ if __name__ == '__main__':
     x = []
     y = []
     z = []
+    flag = 0
     #start_time = time.time()
     while True:
         #print('Assetto data:', assettoReader.getData())
@@ -182,8 +185,11 @@ if __name__ == '__main__':
         x.append((data['tyreContactPointFLX']+data['tyreContactPointFRX']+data['tyreContactPointRLX']+data['tyreContactPointRRX'])/4)
         y.append((data['tyreContactPointFLY']+data['tyreContactPointFRY']+data['tyreContactPointRLY']+data['tyreContactPointRRY'])/4)
         z.append((data['tyreContactPointFLZ']+data['tyreContactPointFRZ']+data['tyreContactPointRLZ']+data['tyreContactPointRRZ'])/4)
-
+        data['playerName'] = static_data['playerName']
         telemetry_data = data
+        if(flag == 0 ):
+            print(telemetry_data)
+            flag += 1
 
         mqtt_client.publish(topic, json.dumps(telemetry_data), 1)
 
