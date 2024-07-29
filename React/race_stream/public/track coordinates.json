@@ -1,0 +1,33 @@
+{
+    "monza": {
+      "minX": -975,
+      "maxX": 680,
+      "minY": -230,
+      "maxY": 1060
+    },
+    "spa": {
+      "minX": -735,
+      "maxX": 820,
+      "minY": -655,
+      "maxY": 655
+    },
+    "Laguna seca": {
+      "minX": -370,
+      "maxX": 390,
+      "minY": -424,
+      "maxY": 400
+    },
+    "imola": {
+      "minX": -950,
+      "maxX": 900,
+      "minY": -400,
+      "maxY": 380
+    },
+    "mugello": {
+      "minX": -790,
+      "maxX": 700,
+      "minY": -240,
+      "maxY": 235
+    }
+  }
+  
