@@ -1,5 +1,6 @@
+import React from 'react';
 import './App.css';
-import {RaceTrack} from './components/racetrack'
+import {RaceTrack} from './components/racetrack';
 
 function App() {
   return (

@@ -1,0 +1,45 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iot:Publish",
+        "iot:Receive",
+        "iot:PublishRetain"
+      ],
+      "Resource": [
+        "arn:aws:iot:us-east-1:548995508093:topic/cars/information",
+        "arn:aws:iot:us-east-1:548995508093:topic/telemetry/*",
+        "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/java",
+        "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/python",
+        "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/js"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iot:Subscribe"
+      ],
+      "Resource": [
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/cars/information",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/telemetry/*",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/java",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/python",
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/js"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iot:Connect"
+      ],
+      "Resource": [
+        "arn:aws:iot:us-east-1:548995508093:client/*",
+        "arn:aws:iot:us-east-1:548995508093:client/sdk-java",
+        "arn:aws:iot:us-east-1:548995508093:client/basicPubSub",
+        "arn:aws:iot:us-east-1:548995508093:client/sdk-nodejs-*"
+      ]
+    }
+  ]
+}
