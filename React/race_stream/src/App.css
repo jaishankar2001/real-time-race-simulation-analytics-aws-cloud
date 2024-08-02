@@ -1,18 +1,76 @@
-.app-container {
-  display: flex;
-  height: 100vh; /* Full viewport height */
+/* Prevent scrolling on the body element */
+body {
+  margin: 0;
+  overflow: hidden; /* Prevent the page from scrolling */
 }
 
-.leaderboard-container {
-  flex: 1; /* Takes up space according to content */
-  width: 300px; /* Fixed width for the leaderboard */
-  overflow-y: auto; /* Scroll if content overflows */
-  background-color: #f0f0f0; /* Optional: light background for contrast */
-  padding: 10px; /* Optional: spacing inside the leaderboard */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Full viewport height */
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+}
+
+.racetrack-leaderboard-container {
+  display: flex;
+  flex: 1; /* Takes up remaining vertical space */
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
 }
 
 .racetrack-container {
-  flex: 3; /* Takes up remaining space */
-  background-color: #ffffff; /* Optional: white background for contrast */
-  padding: 10px; /* Optional: spacing inside the racetrack */
+  width: 60vw; /* 60% of the viewport width */
+  height: calc(100vh - 220px); /* Adjust height to fit within viewport */
+  background-color: #272525; /* Dark background for the track */
+  box-sizing: border-box; /* Include padding in width and height */
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+}
+
+.leaderboard-container {
+  width: 30vw; /* Adjusted width for better proportion */
+  max-width: 400px; /* Maximum width for the leaderboard */
+  overflow-y: auto; /* Scroll if content overflows */
+  background-color: #f0f0f0; /* Light background for contrast */
+  padding: 10px; /* Optional: spacing inside the leaderboard */
+  box-sizing: border-box; /* Include padding in width */
+  margin: 0; /* Remove default margin */
+}
+
+/* Fixed position for telemetry container at the bottom */
+.telemetry-container-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+  color: white;
+  padding: 10px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+  z-index: 1000; /* Ensure it overlays other components */
+  box-sizing: border-box; /* Include padding in width */
+}
+
+.telemetry-container {
+  position: relative;
+  height: 200px; /* Fixed height for the telemetry chart */
+  padding-bottom: 20px; /* Padding only at the bottom of the telemetry container */
+  box-sizing: border-box; /* Include padding in height */
+  margin: 0; /* Remove default margin */
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: red;
 }

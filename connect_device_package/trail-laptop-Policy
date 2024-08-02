@@ -9,6 +9,7 @@
         "iot:PublishRetain"
       ],
       "Resource": [
+        "arn:aws:iot:us-east-1:548995508093:topic/*",
         "arn:aws:iot:us-east-1:548995508093:topic/cars/information",
         "arn:aws:iot:us-east-1:548995508093:topic/data/disconnector12/*",
         "arn:aws:iot:us-east-1:548995508093:topic/sdk/test/java",
@@ -22,6 +23,7 @@
         "iot:Subscribe"
       ],
       "Resource": [
+        "arn:aws:iot:us-east-1:548995508093:topicfilter/*",
         "arn:aws:iot:us-east-1:548995508093:topicfilter/cars/information",
         "arn:aws:iot:us-east-1:548995508093:topicfilter/data/disconnector12/*",
         "arn:aws:iot:us-east-1:548995508093:topicfilter/sdk/test/java",

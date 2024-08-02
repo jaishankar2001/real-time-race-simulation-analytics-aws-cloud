@@ -1,11 +1,9 @@
-// server.js
 const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
 const mqtt = require('mqtt');
 const fs = require('fs');
-//const chart = require('chart');
 
 const app = express();
 const port = 8080;
@@ -40,8 +38,11 @@ const options = {
   clean: true,
   encoding: 'utf8'
 };
+
 const initialTopic = 'cars/information';
 const mqttClient = mqtt.connect(options);
+const existingPlayers = {};
+
 mqttClient.on('connect', () => {
   console.log('Connected to AWS IoT Core');
 
@@ -54,62 +55,73 @@ mqttClient.on('connect', () => {
     }
   });
 });
+
 const getRandomColor = () => {
-  console.log("generating colour");
   let r, g, b;
   do {
     r = Math.floor(Math.random() * 256);
     g = Math.floor(Math.random() * 256);
     b = Math.floor(Math.random() * 256);
   } while ((r + g + b) > 600);
-  const color = `rgb(${r}, ${g}, ${b})`;
-  console.log('Generated Color:', color); // Log generated color
-  return color;
+  return `rgb(${r}, ${g}, ${b})`;
 };
+
 mqttClient.on('message', (topic, message) => {
-  // Broadcast message to all WebSocket clients
   if (topic === initialTopic) {
-    console.log("data")
     const dataPoint = JSON.parse(message.toString());
     const playerName = dataPoint['playerName'];
-    const playerColor = getRandomColor()
-    dataPoint['color'] = playerColor
-    console.log(dataPoint['color'])
-    const newTopicPhysics = "data/"+playerName+'/telemetry';
-    const newTopicGraphics = "data/"+playerName+'/graphics';
 
-    if (newTopicPhysics) {
-        // Subscribe to the new topic
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(dataPoint));
-            }
-        });
-        mqttClient.subscribe(newTopicPhysics, (err) => {
-          if (!err) {
-            console.log(`Subscribed to new topic: ${newTopicPhysics}`);
-          } else {
-            console.error('Subscription error:', err);
-          }
-        });
+    if (!existingPlayers[playerName]) {
+      const playerColor = getRandomColor();
+      existingPlayers[playerName] = playerColor;
+      dataPoint['color'] = playerColor;
+      console.log(`Assigned new color to ${playerName}: ${playerColor}`);
+    } else {
+      dataPoint['color'] = existingPlayers[playerName];
+      console.log(`Player ${playerName} already has color: ${existingPlayers[playerName]}`);
     }
-    if(newTopicGraphics){
+    const newTopicPhysics = 'data/'+dataPoint['playerName']+'/telemetry';
+    const newTopicGraphics = 'data/'+dataPoint['playerName']+'/graphics'; 
+
+    // Broadcast the message with the player color to all WebSocket clients
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(dataPoint));
+      }
+    });
+    
+    // Additional code for subscribing to new topics
+    if (newTopicPhysics) {
+      mqttClient.subscribe(newTopicPhysics, (err) => {
+        if (!err) {
+          console.log(`Subscribed to new topic: ${newTopicPhysics}`);
+        } else {
+          console.error('Subscription error:', err);
+        }
+      });
+    }
+
+    if (newTopicGraphics) {
       mqttClient.subscribe(newTopicGraphics, (err) => {
         if (!err) {
           console.log(`Subscribed to new topic: ${newTopicGraphics}`);
         } else {
           console.error('Subscription error:', err);
         }
-      });}
-  }else{
-    const dataPoint = JSON.parse(message.toString());
-    //console.log('Received message:', dataPoint);
-    wss.clients.forEach(client => {
+      });
+    }
+  } else {
+    try {
+      const dataPoint = JSON.parse(message.toString());
+      wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(dataPoint));
+          client.send(JSON.stringify(dataPoint));
         }
-    });
-}
+      });
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  }
 });
 
 // Serve static files from the "public" directory
@@ -122,6 +134,7 @@ mqttClient.on('message', (topic, message) => {
 server.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
-server.on("connection", (connection, request) => {
-  console.log("new connection requested")
+
+server.on('connection', (connection, request) => {
+  console.log('New connection requested');
 });

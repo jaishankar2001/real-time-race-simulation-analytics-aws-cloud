@@ -10,7 +10,7 @@ export const RaceTrack = () => {
     const [image, setImage] = useState(null);
     const [trackLimits, setTrackLimits] = useState(null);
     const [trackName, setTrackName] = useState('');
-    const [carPlayerName, setCarPlayerName] = useState({});
+    const [existingPlayers, setExistingPlayers] = useState([]);
     const [chartOptions, setChartOptions] = useState({
         scales: {
             x: {
@@ -34,12 +34,26 @@ export const RaceTrack = () => {
                 }
             }
         },
+        legend: {
+            display: false
+        },
+        tooltips: {
+            callbacks: {
+               label: function(tooltipItem) {
+                      return tooltipItem.yLabel;
+               }
+            }
+        },
         responsive: true,
         maintainAspectRatio: true,
         animation: {
             duration: 0 // Disable animations
         },
-        plugins: []
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
     });
     const [data, setData] = useState({
         datasets: []
@@ -86,9 +100,8 @@ export const RaceTrack = () => {
             if (message['track']) {
                 console.log("new player")
                 setTrackName(message['track']);
-                updateCarPlayerNames(message['playerName']);
                 console.log("player color:", message['color']);
-                createNewDataSource(message['playerName'], message['color']);
+                handleNewPlayer(message['playerName'], message['color']);
             }else if (message['tyreContactPointFLY']){
                 updateExistingDataSource(message['playerName'], message);
                 console.log(data)
@@ -108,28 +121,50 @@ export const RaceTrack = () => {
             ws.close();
         };
     }, []);
-    const updateCarPlayerNames = (carPlayerName) => {
-        setCarPlayerName((prevCarPlayerNames) => ({
-            ...prevCarPlayerNames,
-            carPlayerName: []
-        }));
-    }
+    // const updateCarPlayerNames = (carPlayerName) => {
+    //     setCarPlayerName((prevCarPlayerNames) => ({
+    //         ...prevCarPlayerNames,
+    //         carPlayerName: []
+    //     }));
+    // }
+    const handleNewPlayer = (carPlayerName, color) => {
+        if (existingPlayers.includes(carPlayerName)) {
+          console.log("existing player")
+        }else{
+          setExistingPlayers((prevPlayers) => [...prevPlayers, carPlayerName]);
+          createNewDataSource(carPlayerName, color);
+        }
+    };
     const createNewDataSource = (carPlayerName, color) => {
-        setData((prevData) => ({
-            datasets: [...prevData.datasets, {
-                label: carPlayerName,
-                data: [],
-                borderColor: color,
-                backgroundColor: color,
-                borderWidth: 1,
-                pointBackgroundColor: color,
-                pointBorderColor: color,
-                pointRadius: 5,
-                fill: false
-              }]
-        }));
-        console.log(data)
-    }
+        setData((prevData) => {
+            // Check if the player already exists
+            const playerExists = prevData.datasets.some(dataset => dataset.label === carPlayerName);
+    
+            // Only add a new dataset if the player does not exist
+            if (playerExists) {
+                console.log('Player already exists.');
+                return prevData; // Return previous data without changes
+            }
+    
+            // Create a new dataset for the player
+            return {
+                datasets: [
+                    ...prevData.datasets,
+                    {
+                        label: carPlayerName,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: color,
+                        borderWidth: 1,
+                        pointBackgroundColor: color,
+                        pointBorderColor: color,
+                        pointRadius: 5,
+                        fill: false
+                    }
+                ]
+            };
+        });
+    };    
     const updateExistingDataSource = (playerName, newData) => {
         console.log('Updating dataset for:', playerName); // Add this
     
@@ -184,10 +219,7 @@ export const RaceTrack = () => {
     return (
         <div>
             {imageLoaded && trackLimits ? (
-                <>
-                    <p>Track: {trackName}</p>
-                    <Line options={{ ...chartOptions }} data={data} plugins={[imageBackgroundPlugin]}/>
-                </>
+                <Line options={{ ...chartOptions }} data={data} plugins={[imageBackgroundPlugin]}/>
             ) : (
                 <p>Loading image and track limits...</p>
             )}

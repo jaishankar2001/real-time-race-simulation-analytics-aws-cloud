@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-
-const Leaderboard = () => {
+import TelemetryChart from './telemetry';
+const Leaderboard = ({onItemClick}) => {
     const [users, setUsers] = useState([]);
     const [trackName, setTrackName] = useState('');
 
@@ -14,7 +14,7 @@ const Leaderboard = () => {
                 console.log("New track and player data received");
                 setTrackName(message['track']);
                 console.log("Player color:", message['color']);
-                createNewDataSource(message['playerName'], message['color']);
+                createNewDataSource(message);
             } else if (message['position']) {
                 console.log("Telemetry data received:", message);
                 updateExistingDataSource(message);
@@ -30,12 +30,12 @@ const Leaderboard = () => {
         };
     }, []);
 
-    const createNewDataSource = (playerName, color) => {
+    const createNewDataSource = (data) => {
         setUsers((prevUsers) => {
-            if (prevUsers.some(user => user.name === playerName)) {
+            if (prevUsers.some(user => user.name === data['playerName'])) {
                 return prevUsers; // User already exists
             }
-            return [...prevUsers, { name: playerName, color, Position: Infinity }];
+            return [...prevUsers, { name: data['playerName'], color: data['color'], car: data['carModel'], Position: Infinity }];
         });
     };
 
@@ -56,17 +56,22 @@ const Leaderboard = () => {
             return updatedUsers;
         });
     };
-
+    
     const sortedUsers = users.sort((a, b) => a.Position - b.Position);
 
     return (
         <div>
-            <h1>Track: {trackName}</h1>
-            <h2>Leaderboard</h2>
-            <ul style={{ listStyleType: 'none' }}>
+            <h3>Track: {trackName}</h3>
+            <div>Leaderboard</div>
+            <ul style={{ 
+                    listStyleType: 'none', 
+                    padding: 0, // Remove default padding
+                    margin: 0, // Remove default margin
+                    textAlign: 'left' // Align text to the left
+                }}>
                 {sortedUsers.map(user => (
                     <li key={user.name} style={{ color: user.color }}>
-                        {user.Position}: {user.name}: {user.BestTime}, {user.CurrentTime} 
+                        {user.Position}: <button onClick={() => onItemClick(user.name)}>{user.name}</button>: {user.BestTime}, {user.CurrentTime}, {user.car}
                     </li>
                 ))}
             </ul>
