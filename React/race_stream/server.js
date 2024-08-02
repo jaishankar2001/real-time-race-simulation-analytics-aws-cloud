@@ -75,22 +75,32 @@ mqttClient.on('message', (topic, message) => {
     const playerColor = getRandomColor()
     dataPoint['color'] = playerColor
     console.log(dataPoint['color'])
-    const newTopic = "data/"+playerName+'/telemetry';
-    if (newTopic) {
+    const newTopicPhysics = "data/"+playerName+'/telemetry';
+    const newTopicGraphics = "data/"+playerName+'/graphics';
+
+    if (newTopicPhysics) {
         // Subscribe to the new topic
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(dataPoint));
             }
         });
-        mqttClient.subscribe(newTopic, (err) => {
+        mqttClient.subscribe(newTopicPhysics, (err) => {
           if (!err) {
-            console.log(`Subscribed to new topic: ${newTopic}`);
+            console.log(`Subscribed to new topic: ${newTopicPhysics}`);
           } else {
             console.error('Subscription error:', err);
           }
         });
     }
+    if(newTopicGraphics){
+      mqttClient.subscribe(newTopicGraphics, (err) => {
+        if (!err) {
+          console.log(`Subscribed to new topic: ${newTopicGraphics}`);
+        } else {
+          console.error('Subscription error:', err);
+        }
+      });}
   }else{
     const dataPoint = JSON.parse(message.toString());
     //console.log('Received message:', dataPoint);
