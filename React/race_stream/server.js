@@ -54,13 +54,28 @@ mqttClient.on('connect', () => {
     }
   });
 });
+const getRandomColor = () => {
+  console.log("generating colour");
+  let r, g, b;
+  do {
+    r = Math.floor(Math.random() * 256);
+    g = Math.floor(Math.random() * 256);
+    b = Math.floor(Math.random() * 256);
+  } while ((r + g + b) > 600);
+  const color = `rgb(${r}, ${g}, ${b})`;
+  console.log('Generated Color:', color); // Log generated color
+  return color;
+};
 mqttClient.on('message', (topic, message) => {
   // Broadcast message to all WebSocket clients
   if (topic === initialTopic) {
     console.log("data")
     const dataPoint = JSON.parse(message.toString());
     const playerName = dataPoint['playerName'];
-    const newTopic = "telemetry/"+playerName;
+    const playerColor = getRandomColor()
+    dataPoint['color'] = playerColor
+    console.log(dataPoint['color'])
+    const newTopic = "data/"+playerName+'/telemetry';
     if (newTopic) {
         // Subscribe to the new topic
         wss.clients.forEach(client => {

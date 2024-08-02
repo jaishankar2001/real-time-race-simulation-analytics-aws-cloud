@@ -84,10 +84,12 @@ export const RaceTrack = () => {
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             if (message['track']) {
+                console.log("new player")
                 setTrackName(message['track']);
                 updateCarPlayerNames(message['playerName']);
-                createNewDataSource(message['playerName']);
-            }else{
+                console.log("player color:", message['color']);
+                createNewDataSource(message['playerName'], message['color']);
+            }else if (message['tyreContactPointFLY']){
                 updateExistingDataSource(message['playerName'], message);
                 console.log(data)
             }
@@ -112,16 +114,16 @@ export const RaceTrack = () => {
             carPlayerName: []
         }));
     }
-    const createNewDataSource = (carPlayerName) => {
+    const createNewDataSource = (carPlayerName, color) => {
         setData((prevData) => ({
             datasets: [...prevData.datasets, {
                 label: carPlayerName,
                 data: [],
-                borderColor: 'black',
-                backgroundColor: 'black',
+                borderColor: color,
+                backgroundColor: color,
                 borderWidth: 1,
-                pointBackgroundColor: 'black',
-                pointBorderColor: 'black',
+                pointBackgroundColor: color,
+                pointBorderColor: color,
                 pointRadius: 5,
                 fill: false
               }]
