@@ -164,7 +164,8 @@ if __name__ == '__main__':
     print(static_data)
     mqtt_client.publish(topic, json.dumps(static_data), 1)
     time.sleep(1)
-    topic = f"telemetry/{static_data['playerName']}"
+    topic_physics = f"data/{static_data['playerName']}/telemetry"
+    topic_graphic = f"data/{static_data['playerName']}/graphics"
     duration = 2 * 60 + 6
     data = []
     #print('Static data:', assettoReader.getStaticData())
@@ -173,7 +174,7 @@ if __name__ == '__main__':
     y = []
     z = []
     flag = 0
-    #start_time = time.time()
+    start_time = time.time()
     while True:
         #print('Assetto data:', assettoReader.getData())
         data = assettoReader.getData()
@@ -187,16 +188,17 @@ if __name__ == '__main__':
         z.append((data['tyreContactPointFLZ']+data['tyreContactPointFRZ']+data['tyreContactPointRLZ']+data['tyreContactPointRRZ'])/4)
         data['playerName'] = static_data['playerName']
         telemetry_data = data
-        if(flag == 0 ):
-            print(telemetry_data)
-            flag += 1
+        data = assettoReader.getGraphicData()
+        graphic_data = data
+        graphic_data['playerName'] = static_data['playerName']
 
-        mqtt_client.publish(topic, json.dumps(telemetry_data), 1)
-
-        #elapsed_time = time.time() - start_time
-        #if elapsed_time >= duration:
-        #    break
-        time.sleep(0.5)
+        mqtt_client.publish(topic_physics, json.dumps(telemetry_data), 1)
+        mqtt_client.publish(topic_graphic, json.dumps(graphic_data), 1)
+        flag+=1
+        if flag == 30:
+            mqtt_client.publish(topic, json.dumps(static_data), 1)
+            flag=0
+        time.sleep(0.2)
     
     '''print(data)
     #print(dist)
