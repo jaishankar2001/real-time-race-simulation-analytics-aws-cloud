@@ -75,7 +75,7 @@ It focuses on races simulated in **Assetto Corsa**.
 ## 💻 Application Screenshots
 
 - Homepage  
-  ![Homepage](./images/homepage.png)
+  ![Homepage](./images/Homepage.png)
 - Racer Signup  
   ![Signup](./images/signup.png)
 - Racer Connection Kit Request  
