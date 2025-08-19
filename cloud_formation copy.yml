@@ -1,0 +1,706 @@
+Parameters:
+  IAMRoleArn:
+    Type: String
+    Description: ARN of the IAM role to be assumed by the Lambda functions.
+  AccountID:
+    Type: String
+    Description: Account ID that will be used for IoT requests
+
+Resources:
+  # MyS3Bucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     BucketName: !Sub "${AWS::StackName}-connection-kit"
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-connection-kit"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MyS3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPublicReadAccess
+            Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub "${MyS3Bucket.Arn}/*"
+
+  MyDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "Users"
+      AttributeDefinitions:
+        - AttributeName: userID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userID
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  MyLambdaFunction1:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "topic-creator"
+      Handler: "lambda_function.lambda_handler"
+      Role: !Ref IAMRoleArn
+      Code:
+        S3Bucket: "code-table-lambdas"
+        S3Key: "topic-creator.zip"
+      Runtime: "python3.11"
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref MyDynamoDBTable
+
+  MyLambdaFunction2:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "user_check"
+      Handler: "lambda_function.lambda_handler"
+      Role: !Ref IAMRoleArn
+      Code:
+        S3Bucket: "code-table-lambdas"
+        S3Key: "user_check.zip"
+      Runtime: "python3.11"
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref MyDynamoDBTable
+          USER_EXISTS_QUEUE_URL: !GetAtt USEREXISTSQUEUE.QueueUrl
+
+  MyLambdaFunction3:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "create-IoT-thing"
+      Handler: "lambda_function.lambda_handler"
+      Role: !Ref IAMRoleArn
+      Code:
+        S3Bucket: "code-table-lambdas"
+        S3Key: "Create-IoT-thing.zip"
+      Runtime: "python3.11"
+      Environment:
+        Variables:
+          THING_CREATED_QUEUE_URL: !GetAtt THINGCREATEDQUEUE.QueueUrl
+          ACCOUNT_ID: !Ref AccountID
+
+  MyLambdaFunction4:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "store-to-s3"
+      Handler: "lambda_function.lambda_handler"
+      Role: !Ref IAMRoleArn
+      Code:
+        S3Bucket: "code-table-lambdas"
+        S3Key: "store-to-s3.zip"
+      Runtime: "python3.11"
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref MyS3Bucket
+          TABLE_NAME: !Ref MyDynamoDBTable
+
+  MyLambdaFunctionUrl1:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn: !GetAtt MyLambdaFunction1.Arn
+      Cors:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        ExposeHeaders:
+          - "access-control-allow-origin"
+          - "access-control-allow-methods"
+          - "access-control-allow-headers"
+          - "content-type"
+        AllowHeaders:
+          - "access-control-allow-origin"
+          - "access-control-allow-methods"
+          - "access-control-allow-headers"
+          - "content-type"
+
+  MyLambdaFunctionUrl2:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn: !GetAtt MyLambdaFunction2.Arn
+      Cors:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        ExposeHeaders:
+          - "access-control-allow-origin"
+          - "access-control-allow-methods"
+          - "access-control-allow-headers"
+          - "content-type"
+        AllowHeaders:
+          - "access-control-allow-origin"
+          - "access-control-allow-methods"
+          - "access-control-allow-headers"
+          - "content-type"
+
+  USEREXISTSQUEUE:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "USER_EXISTS_QUEUE"
+
+  THINGCREATEDQUEUE:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "THING_CREATED_QUEUE"
+
+  QueuePolicyForUserExistsQueue:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref USEREXISTSQUEUE
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal: "*"
+            Action:
+              - "sqs:SendMessage"
+              - "sqs:ReceiveMessage"
+            Resource: !GetAtt USEREXISTSQUEUE.Arn
+            Condition:
+              StringEquals:
+                "aws:PrincipalArn": !Ref IAMRoleArn
+
+  QueuePolicyForThingCreatedQueue:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref THINGCREATEDQUEUE
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal: "*"
+            Action:
+              - "sqs:SendMessage"
+              - "sqs:ReceiveMessage"
+            Resource: !GetAtt THINGCREATEDQUEUE.Arn
+            Condition:
+              StringEquals:
+                "aws:PrincipalArn": !Ref IAMRoleArn
+
+  MyLambdaTrigger1:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt USEREXISTSQUEUE.Arn
+      FunctionName: !GetAtt MyLambdaFunction3.Arn
+
+  MyLambdaTrigger2:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt THINGCREATEDQUEUE.Arn
+      FunctionName: !GetAtt MyLambdaFunction4.Arn
+
+  FunctionUrlSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: "LambdaFunctionUrls"
+      Description: "Secret to store Lambda function URLs"
+      SecretString: !Sub |
+        {
+          "TOPIC_CREATOR_URL": "${MyLambdaFunctionUrl1.FunctionUrl}",
+          "USER_CHECK_URL": "${MyLambdaFunctionUrl2.FunctionUrl}"
+        }
+
+  # Create VPC
+  RacestreamVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-RacestreamVPC"
+
+  # Create Internet Gateway
+  igw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-igw"
+
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      InternetGatewayId: !Ref igw
+
+  # Create Subnet 1 (Public Subnet)
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: us-east-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicSubnet"
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: us-east-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicSubnet2"
+
+  # Create Subnet 2 (Private Subnet)
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: us-east-1a
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PrivateSubnet"
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: us-east-1b
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PrivateSubnet2"
+
+  # Create EIP for NAT Gateway
+  EIP3:
+    Type: AWS::EC2::EIP
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EIP3"
+
+  # Create NAT Gateway
+  MyNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIP3.AllocationId
+      SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MyNatGateway"
+
+  # Create Public Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicRouteTable"
+
+  # Create Route for Public Subnet to IGW
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igw
+
+  # Associate Public Route Table with Public Subnet
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # Create Private Route Table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RacestreamVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PrivateRouteTable"
+
+  # Create Route for Private Subnet to NAT Gateway
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref MyNatGateway
+
+  # Associate Private Route Table with Private Subnet
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # Create Security Group for Instance 1
+  Instance1SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow all inbound and outbound traffic for Instance 1
+      VpcId: !Ref RacestreamVPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Instance1SG"
+
+  # Create Security Group for Instance 2
+  Instance2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow all inbound and outbound traffic for Instance 2
+      VpcId: !Ref RacestreamVPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Instance2SG"
+
+  # Create EC2 Instance 1
+  Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0ae8f15ae66fe8cda # Replace with a valid AMI ID
+      SubnetId: !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref Instance1SG
+      KeyName: backend-server
+      Tags:
+        - Key: Name
+          Value: !Sub "backend-server"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install required packages
+          sudo yum install -y aws-cli git docker
+          # Start Docker service
+          sudo service docker start
+          mkdir compose
+          cd compose
+          cat <<EOF > docker-compose.yml
+          services:
+            app:
+              image: disconnector12/race-stream-backend-server
+              ports:
+                - "8383:8383"
+              networks:
+                - app-network
+          networks:
+            app-network:
+              driver: bridge
+          EOF
+          sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d '"' -f 4)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+          # Run Docker Compose with the .env file
+          sudo docker-compose up -d
+
+  # Create EC2 Instance 2
+  Instance2:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - NetworkLoadBalancer
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0ae8f15ae66fe8cda # Replace with a valid AMI ID
+      SubnetId: !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref Instance2SG
+      KeyName: backend-server
+      Tags:
+        - Key: Name
+          Value: !Sub "frontend-server"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install required packages
+          sudo yum install -y aws-cli git docker
+          # Start Docker service
+          sudo service docker start
+          mkdir compose
+          cd compose
+          cat <<EOF > docker-compose.yml
+          services:
+            app:
+              image: disconnector12/race-stream-frontend
+              ports:
+                - "3000:3000"
+              environment:
+                REACT_APP_TOPIC_CREATOR_URL: ${MyLambdaFunctionUrl1.FunctionUrl}
+                REACT_APP_USER_CHECK_URL: ${MyLambdaFunctionUrl2.FunctionUrl}
+                REACT_APP_BACKEND_SERVER: ws://${NetworkLoadBalancer.DNSName}:8383
+          EOF
+          sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d '"' -f 4)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+          # Run Docker Compose with the .env file
+          sudo docker-compose up -d
+
+  Instance3:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0ae8f15ae66fe8cda # Replace with a valid AMI ID
+      SubnetId: !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref Instance1SG
+      KeyName: backend-server
+      Tags:
+        - Key: Name
+          Value: !Sub "backend-server"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install required packages
+          sudo yum install -y aws-cli git docker
+          # Start Docker service
+          sudo service docker start
+          mkdir compose
+          cd compose
+          cat <<EOF > docker-compose.yml
+          services:
+            app:
+              image: disconnector12/race-stream-backend-server
+              ports:
+                - "8383:8383"
+              networks:
+                - app-network
+          networks:
+            app-network:
+              driver: bridge
+          EOF
+          sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d '"' -f 4)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+          # Run Docker Compose with the .env file
+          sudo docker-compose up -d
+
+  Instance4:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - NetworkLoadBalancer
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0ae8f15ae66fe8cda # Replace with a valid AMI ID
+      SubnetId: !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref Instance2SG
+      KeyName: backend-server
+      Tags:
+        - Key: Name
+          Value: !Sub "frontend-server2"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install required packages
+          sudo yum install -y aws-cli git docker
+          # Start Docker service
+          sudo service docker start
+          mkdir compose
+          cd compose
+          cat <<EOF > docker-compose.yml
+          services:
+            app:
+              image: disconnector12/race-stream-frontend
+              ports:
+                - "3000:3000"
+              environment:
+                REACT_APP_TOPIC_CREATOR_URL: ${MyLambdaFunctionUrl1.FunctionUrl}
+                REACT_APP_USER_CHECK_URL: ${MyLambdaFunctionUrl2.FunctionUrl}
+                REACT_APP_BACKEND_SERVER: ws://${NetworkLoadBalancer.DNSName}:8383
+          EOF
+          sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d '"' -f 4)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+          # Run Docker Compose with the .env file
+          sudo docker-compose up -d
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for load balancers
+      VpcId: !Ref RacestreamVPC # Replace with your VPC ID
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: ALB
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet # Replace with your subnet IDs
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Type: application
+
+  # Target Group for Application Load Balancer
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: ALBTargetGroup
+      TargetType: instance
+      Port: 3000
+      Protocol: HTTP
+      VpcId: !Ref RacestreamVPC # Replace with your VPC ID
+      Targets:
+        - Id: !Ref Instance2
+        - Id: !Ref Instance4
+
+  # Listener for Application Load Balancer
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 3000
+      Protocol: HTTP
+
+  # Network Load Balancer
+  NetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: NLB
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet
+        - !Ref PublicSubnet2
+      Type: network
+
+  # Target Group for Network Load Balancer
+  NLBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: NLBTargetGroup
+      TargetType: instance
+      Port: 8383
+      Protocol: TCP
+      VpcId: !Ref RacestreamVPC # Replace with your VPC ID
+      Targets:
+        - Id: !Ref Instance1 # Replace with the instance ID for NLB
+        - Id: !Ref Instance3
+
+  # Listener for Network Load Balancer
+  NLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref NLBTargetGroup
+      LoadBalancerArn: !Ref NetworkLoadBalancer
+      Port: 8383
+      Protocol: TCP
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref RacestreamVPC
+
+  InternetGatewayId:
+    Description: Internet Gateway ID
+    Value: !Ref igw
+
+  PublicSubnetId:
+    Description: Public Subnet ID
+    Value: !Ref PublicSubnet
+
+  PrivateSubnetId:
+    Description: Private Subnet ID
+    Value: !Ref PrivateSubnet
+
+  NatGatewayId:
+    Description: NAT Gateway ID
+    Value: !Ref MyNatGateway
+
+  PublicRouteTableId:
+    Description: Public Route Table ID
+    Value: !Ref PublicRouteTable
+
+  PrivateRouteTableId:
+    Description: Private Route Table ID
+    Value: !Ref PrivateRouteTable
+
+  Instance1Id:
+    Description: EC2 Instance 1 ID
+    Value: !Ref Instance1
+
+  Instance2Id:
+    Description: EC2 Instance 2 ID
+    Value: !Ref Instance2
+
+  Instance1SGId:
+    Description: Security Group ID for Instance 1
+    Value: !Ref Instance1SG
+
+  Instance2SGId:
+    Description: Security Group ID for Instance 2
+    Value: !Ref Instance2SG
+
+  S3BucketName:
+    Description: Name of the S3 bucket created
+    Value: !Ref MyS3Bucket
+
+  DynamoDBTableName:
+    Description: Name of the DynamoDB table created
+    Value: !Ref MyDynamoDBTable
+
+  LambdaFunctionUrl1:
+    Description: Function URL for MyLambdaFunction1
+    Value: !GetAtt MyLambdaFunctionUrl1.FunctionUrl
+
+  LambdaFunctionUrl2:
+    Description: Function URL for MyLambdaFunction2
+    Value: !GetAtt MyLambdaFunctionUrl2.FunctionUrl
+  NLBDNSName:
+    Value: !GetAtt NetworkLoadBalancer.DNSName
+    Description: The DNS name of the Network Load Balancer

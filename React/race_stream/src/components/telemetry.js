@@ -4,7 +4,7 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
-const TelemetryChart = ({playerName}) => {
+const TelemetryChart = ({ playerName }) => {
   const [brakeData, setBrakeData] = useState({
     labels: [],
     datasets: [
@@ -45,19 +45,19 @@ const TelemetryChart = ({playerName}) => {
     responsive: true,
     maintainAspectRatio: true,
     scales: {
-        x: {
-            display: false,
-            max: 20
-        },
-        y: {
-            display: true,
-            min: 0
-        }
+      x: {
+        display: false,
+        max: 20,
+      },
+      y: {
+        display: true,
+        min: 0,
+      },
     },
     elements: {
-        point:{
-            radius: 0
-        }
+      point: {
+        radius: 0,
+      },
     },
     animation: {
       duration: 0, // Disable animations
@@ -67,14 +67,28 @@ const TelemetryChart = ({playerName}) => {
   const websocket = useRef(null);
 
   useEffect(() => {
-    websocket.current = new WebSocket('ws://localhost:8080');
+    // Update WebSocket URL to the provided API Gateway WebSocket URL
+    websocket.current = new WebSocket(`${process.env.REACT_APP_BACKEND_SERVER}`);
+
+    websocket.current.onopen = () => {
+      console.log('WebSocket connection established');
+      // Optionally, send a message to the API Gateway @connections endpoint if needed
+      // For example, if you need to send player data when the connection is open:
+      // const connectionMessage = { action: 'join', playerName };
+      // websocket.current.send(JSON.stringify(connectionMessage));
+      // fetch('https://4gwu8bevw2.execute-api.us-east-1.amazonaws.com/production/@connections', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ connectionId: ws.connectionId })
+      // });
+    };
 
     websocket.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if(data['playerName'] === playerName){
+      if (data['playerName'] === playerName) {
         if (data['tyreContactPointFLY']) {
           const currentTime = new Date().toLocaleTimeString();
 
+          // Update brake data
           setBrakeData((prevData) => {
             const newLabels = [...prevData.labels, currentTime];
             const newBrake = [...prevData.datasets[0].data, data['brake']];
@@ -91,6 +105,7 @@ const TelemetryChart = ({playerName}) => {
             };
           });
 
+          // Update speed data
           setSpeedData((prevData) => {
             const newLabels = [...prevData.labels, currentTime];
             const newSpeed = [...prevData.datasets[0].data, data['speed']];
@@ -107,6 +122,7 @@ const TelemetryChart = ({playerName}) => {
             };
           });
 
+          // Update gas data
           setGasData((prevData) => {
             const newLabels = [...prevData.labels, currentTime];
             const newGas = [...prevData.datasets[0].data, data['throttle']];
@@ -123,27 +139,35 @@ const TelemetryChart = ({playerName}) => {
             };
           });
         }
-      };
+      }
+    };
+
+    websocket.current.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    websocket.current.onclose = () => {
+      console.log('WebSocket connection closed');
     };
 
     return () => {
+      console.log('closing connection');
       websocket.current.close();
     };
-  }, []);
+  }, [playerName]); // Add playerName as a dependency
 
   return (
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
-    <div style={{ flex: '1' }}>
-      <Line data={brakeData} options={chartOptions} />
+    <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+      <div style={{ flex: '1' }}>
+        <Line data={brakeData} options={chartOptions} />
+      </div>
+      <div style={{ flex: '1' }}>
+        <Line data={speedData} options={chartOptions} />
+      </div>
+      <div style={{ flex: '1' }}>
+        <Line data={gasData} options={chartOptions} />
+      </div>
     </div>
-    <div style={{ flex: '1' }}>
-      <Line data={speedData} options={chartOptions} />
-    </div>
-    <div style={{ flex: '1' }}>
-      <Line data={gasData} options={chartOptions} />
-    </div>
-  </div>
-
   );
 };
 

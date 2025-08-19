@@ -1,12 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import TelemetryChart from './telemetry';
+
 const Leaderboard = ({onItemClick}) => {
     const [users, setUsers] = useState([]);
     const [trackName, setTrackName] = useState('');
 
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:8080');
-
+        // Establish a WebSocket connection to API Gateway
+        const ws = new WebSocket(`${process.env.REACT_APP_BACKEND_SERVER}`);
+        
+        ws.onopen = () => {
+            console.log('WebSocket connection established');
+            // Optionally, register the connection if needed using @connections URL
+            // This may be part of your API flow
+            // Example: You might want to send a message to @connections to register the connection for later use
+            // fetch('https://4gwu8bevw2.execute-api.us-east-1.amazonaws.com/production/@connections', {
+            //     method: 'POST',
+            //     body: JSON.stringify({ connectionId: ws.connectionId })
+            // });
+        };
+        
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             console.log("message pos", message['position'])
@@ -21,10 +34,15 @@ const Leaderboard = ({onItemClick}) => {
             }
         };
 
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
         ws.onclose = () => {
             console.log('WebSocket connection closed');
         };
 
+        // Cleanup WebSocket on component unmount
         return () => {
             ws.close();
         };
@@ -56,7 +74,7 @@ const Leaderboard = ({onItemClick}) => {
             return updatedUsers;
         });
     };
-    
+
     const sortedUsers = users.sort((a, b) => a.Position - b.Position);
 
     return (
@@ -65,9 +83,9 @@ const Leaderboard = ({onItemClick}) => {
             <div>Leaderboard</div>
             <ul style={{ 
                     listStyleType: 'none', 
-                    padding: 0, // Remove default padding
-                    margin: 0, // Remove default margin
-                    textAlign: 'left' // Align text to the left
+                    padding: 0, 
+                    margin: 0, 
+                    textAlign: 'left'
                 }}>
                 {sortedUsers.map(user => (
                     <li key={user.name} style={{ color: user.color }}>

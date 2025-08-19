@@ -1,7 +1,6 @@
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import React, { useEffect, useState } from 'react';
-const Chart = require("react-chartjs-2").Chart;
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -17,17 +16,17 @@ export const RaceTrack = () => {
                 display: false,
                 type: 'linear',
                 position: 'bottom',
-                min: 0, // Default min value
-                max: 100, // Default max value
+                min: 0, 
+                max: 100, 
                 ticks: {
                     beginAtZero: true,
                     max: 1
-                  }
+                }
             },
             y: {
                 display: false,
-                min: 0, // Default min value
-                max: 100, // Default max value
+                min: 0, 
+                max: 100, 
                 ticks: {
                     beginAtZero: true,
                     max: 1
@@ -47,7 +46,7 @@ export const RaceTrack = () => {
         responsive: true,
         maintainAspectRatio: true,
         animation: {
-            duration: 0 // Disable animations
+            duration: 0 
         },
         plugins: {
             legend: {
@@ -61,7 +60,7 @@ export const RaceTrack = () => {
 
     useEffect(() => {
         const img = new Image();
-        img.src = `/TrackMaps/${trackName}.png`; // Adjust path if needed
+        img.src = `/TrackMaps/${trackName}.png`; 
         img.onload = () => {
             setImage(img);
             setImageLoaded(true);
@@ -72,7 +71,7 @@ export const RaceTrack = () => {
         };
 
         const loadTrackLimits = async () => {
-            const fileName = '/track coordinates.json'; // Adjust the path as needed
+            const fileName = '/track coordinates.json'; 
             try {
                 const response = await fetch(fileName);
                 if (!response.ok) {
@@ -81,7 +80,7 @@ export const RaceTrack = () => {
                 const data = await response.json();
                 setTrackLimits(data);
                 console.log('Track limits loaded:', data);
-                updateChartOptions(data); // Update chart options with the new limits
+                updateChartOptions(data); 
             } catch (error) {
                 console.error('Error fetching or parsing JSON:', error);
             }
@@ -92,21 +91,30 @@ export const RaceTrack = () => {
             loadTrackLimits(trackName);
         };
     }, [trackName]);
+
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:8080'); // Replace with your WebSocket server URL
+        // Connect to WebSocket API Gateway
+        const ws = new WebSocket(`${process.env.REACT_APP_BACKEND_SERVER}`);
+
+        ws.onopen = () => {
+            console.log('WebSocket connection established');
+            // fetch('https://4gwu8bevw2.execute-api.us-east-1.amazonaws.com/production/@connections', {
+            //     method: 'POST',
+            //     body: JSON.stringify({ connectionId: ws.connectionId })
+            // });
+        };
 
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             if (message['track']) {
-                console.log("new player")
+                console.log("New track and player data received");
                 setTrackName(message['track']);
-                console.log("player color:", message['color']);
+                console.log("Player color:", message['color']);
                 handleNewPlayer(message['playerName'], message['color']);
-            }else if (message['tyreContactPointFLY']){
+            } else if (message['tyreContactPointFLY']) {
                 updateExistingDataSource(message['playerName'], message);
-                console.log(data)
+                console.log('Telemetry data received:', message);
             }
-            
         };
 
         ws.onerror = (error) => {
@@ -121,32 +129,23 @@ export const RaceTrack = () => {
             ws.close();
         };
     }, []);
-    // const updateCarPlayerNames = (carPlayerName) => {
-    //     setCarPlayerName((prevCarPlayerNames) => ({
-    //         ...prevCarPlayerNames,
-    //         carPlayerName: []
-    //     }));
-    // }
+
     const handleNewPlayer = (carPlayerName, color) => {
         if (existingPlayers.includes(carPlayerName)) {
-          console.log("existing player")
-        }else{
-          setExistingPlayers((prevPlayers) => [...prevPlayers, carPlayerName]);
-          createNewDataSource(carPlayerName, color);
+            console.log("Existing player");
+        } else {
+            setExistingPlayers((prevPlayers) => [...prevPlayers, carPlayerName]);
+            createNewDataSource(carPlayerName, color);
         }
     };
+
     const createNewDataSource = (carPlayerName, color) => {
         setData((prevData) => {
-            // Check if the player already exists
             const playerExists = prevData.datasets.some(dataset => dataset.label === carPlayerName);
-    
-            // Only add a new dataset if the player does not exist
             if (playerExists) {
                 console.log('Player already exists.');
-                return prevData; // Return previous data without changes
+                return prevData;
             }
-    
-            // Create a new dataset for the player
             return {
                 datasets: [
                     ...prevData.datasets,
@@ -164,27 +163,26 @@ export const RaceTrack = () => {
                 ]
             };
         });
-    };    
+    };
+
     const updateExistingDataSource = (playerName, newData) => {
-        console.log('Updating dataset for:', playerName); // Add this
-    
         setData(prevData => {
             const updatedDatasets = prevData.datasets.map(dataset => {
                 if (dataset.label === playerName) {
                     return {
                         ...dataset,
-                        data: [{x: (newData['tyreContactPointFRX']+newData['tyreContactPointFLX']+newData['tyreContactPointRRX']+newData['tyreContactPointRLX'])/4,
-                                y: (newData['tyreContactPointFRY']+newData['tyreContactPointFLY']+newData['tyreContactPointRRY']+newData['tyreContactPointRLY'])/4}]
+                        data: [{
+                            x: (newData['tyreContactPointFRX'] + newData['tyreContactPointFLX'] + newData['tyreContactPointRRX'] + newData['tyreContactPointRLX']) / 4,
+                            y: (newData['tyreContactPointFRY'] + newData['tyreContactPointFLY'] + newData['tyreContactPointRRY'] + newData['tyreContactPointRLY']) / 4
+                        }]
                     };
                 }
                 return dataset;
             });
-    
-            console.log('Updated datasets:', updatedDatasets); // Add this
             return { datasets: updatedDatasets };
         });
     };
-    
+
     const updateChartOptions = (limits) => {
         setChartOptions((prevOptions) => ({
             ...prevOptions,
@@ -219,7 +217,7 @@ export const RaceTrack = () => {
     return (
         <div>
             {imageLoaded && trackLimits ? (
-                <Line options={{ ...chartOptions }} data={data} plugins={[imageBackgroundPlugin]}/>
+                <Line options={{ ...chartOptions }} data={data} plugins={[imageBackgroundPlugin]} />
             ) : (
                 <p>Loading image and track limits...</p>
             )}
